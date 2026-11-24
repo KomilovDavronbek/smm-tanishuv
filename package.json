@@ -1,0 +1,8 @@
+{
+  "name": "smm-tanishuv",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SMM kursi birinchi darsi uchun tanishuv va avtomatik guruhlash tizimi. Muallif: Komilov Davronbek (Najot Ta'lim).",
+  "engines": { "node": ">=18" }
+}
