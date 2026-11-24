@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SMM Tanishuv tizimi</title>
+<link rel="icon" href="/logo.jpg">
+<meta name="description" content="SMM kursi birinchi darsi uchun tanishuv va avtomatik guruhlash tizimi — muallif Komilov Davronbek, Najot Ta'lim">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: energetic classroom tool, confident, warm Uzbek copy
+   IDEA: a live seating chart — cards fall into tables as people arrive
+   PICTURE: the group board itself, filling the screen on the projector
+   COLOUR and TYPE: Najot navy #0E1828, mint #19E3A2, soft white; Manrope
+   LAYOUT: header strip with QR, controls, then the group board; form is one calm column */
+:root{color-scheme:dark;--bg:#0B1524;--panel:#111E31;--panel2:#16263D;--line:#22364F;--ink:#EAF3F8;--mute:#8CA0B6;--mint:#19E3A2;--mint2:#0FB984;--mintbg:rgba(25,227,162,.12)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Manrope,system-ui,sans-serif;overflow-x:clip}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);border-radius:12px;min-height:44px;padding:0 16px;font-weight:600}
+button:hover{border-color:var(--mint)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.primary{background:var(--mint);color:#06281D;border-color:var(--mint);font-weight:800}
+.primary:hover{background:#3DF0B6}
+.hidden{display:none!important}
+/* header */
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:18px max(4vw,16px);border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0F1C2E,var(--bg))}
+.logo{width:64px;height:48px;border-radius:10px;object-fit:cover}
+.brand h1{margin:0;font-size:clamp(22px,2.6vw,32px);line-height:1.05;font-weight:800}
+.brand p{margin:2px 0 0;color:var(--mute);font-size:14px}
+.brand b{color:var(--mint);font-weight:700}
+.stats{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 16px;text-align:center}
+.stat strong{display:block;font-size:28px;line-height:1.1;color:var(--mint)}
+.stat span{font-size:13px;color:var(--mute)}
+.qr{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 12px}
+.qr #qrbox{background:#fff;padding:6px;border-radius:8px;width:100px;height:100px}
+.qr #qrbox img,.qr #qrbox canvas{width:88px!important;height:88px!important}
+.qr p{margin:0;font-size:13px;color:var(--mute);max-width:150px}
+.qr p b{color:var(--ink);display:block;font-size:15px}
+/* toolbar */
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px max(4vw,16px)}
+.size{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 6px 0 14px;min-height:44px}
+.size button{min-height:34px;padding:0 12px;border-radius:9px}
+.size output{font-weight:800;font-size:18px;width:28px;text-align:center;color:var(--mint)}
+.bar .sp{flex:1}
+.status{font-size:14px;color:var(--mute)}
+.status.live::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--mint);margin-right:8px;box-shadow:0 0 0 4px var(--mintbg)}
+/* board */
+main{padding:4px max(4vw,16px) 40px}
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr));gap:16px}
+.group{background:linear-gradient(180deg,#132238,var(--panel) 120px);border:1px solid var(--line);border-radius:22px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px -18px #000}
+.ghead{display:flex;align-items:center;gap:12px}
+.gnum{width:48px;height:48px;border-radius:14px;background:var(--mint);color:#06281D;display:grid;place-items:center;font-size:26px;font-weight:800;flex:none}
+.ghead h2{margin:0;font-size:20px;font-weight:800;line-height:1.15}
+.ghead .gsub{display:block;color:var(--mute);font-size:13px;font-weight:600}
+.meter{height:6px;border-radius:9px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--mint);border-radius:9px;transition:width .6s}
+.demo-note{margin:0 max(4vw,16px) 14px;padding:10px 14px;border-radius:12px;border:1px dashed var(--mint);color:var(--mint);font-size:14px;background:var(--mintbg)}
+.addrow{display:flex;gap:8px;margin-top:10px}
+.addrow input{flex:1}
+.addrow button{flex:none}
+.pick button.custom{border-style:dashed}
+.common{font-size:13px;color:var(--mint);background:var(--mintbg);border-radius:10px;padding:6px 10px;line-height:1.35}
+.common.none{color:var(--mute);background:transparent;border:1px dashed var(--line)}
+.card{position:relative;display:grid;grid-template-columns:40px 1fr;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px;animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+.card.new{border-color:var(--mint);box-shadow:0 0 0 3px var(--mintbg)}
+.av{width:40px;height:40px;border-radius:12px;background:var(--mint);color:#06281D;display:grid;place-items:center;font-weight:800;font-size:18px}
+.card h3{margin:0;font-size:16px;line-height:1.2;font-weight:700;overflow-wrap:anywhere}
+.meta{font-size:13px;color:var(--mute);line-height:1.35}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;grid-column:1/-1}
+.chip{font-size:13px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}
+.chip.hit{border-color:var(--mint);color:var(--mint);background:var(--mintbg);font-weight:700}
+.del{position:absolute;top:6px;right:6px;min-height:28px;width:28px;padding:0;border-radius:8px;font-size:14px;color:var(--mute);opacity:0}
+.card:hover .del{opacity:1}
+@keyframes pop{from{opacity:0;transform:translateY(-14px) scale(.94)}}
+@media(prefers-reduced-motion:reduce){.card{animation:none}}
+.empty{border:2px dashed var(--line);border-radius:24px;padding:48px 20px;text-align:center;color:var(--mute)}
+.empty h2{color:var(--ink);font-size:26px;margin:0 0 6px}
+footer{padding:18px max(4vw,16px);border-top:1px solid var(--line);color:var(--mute);font-size:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+footer b{color:var(--mint)}
+/* form */
+.formwrap{max-width:560px;margin:0 auto;padding:28px 16px 48px}
+.fhead{text-align:center;margin-bottom:22px}
+.fhead img{width:96px;height:72px;border-radius:14px;object-fit:cover}
+.fhead h1{font-size:clamp(28px,6vw,40px);line-height:1.05;margin:12px 0 6px;font-weight:800;text-wrap:balance}
+.fhead p{margin:0;color:var(--mute)}
+form{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:20px;display:grid;gap:16px}
+label{display:grid;gap:6px;font-weight:600;font-size:15px}
+label small{color:var(--mute);font-weight:500}
+input,select{background:var(--bg);border:1px solid var(--line);border-radius:12px;min-height:48px;padding:0 14px;font-size:16px;width:100%}
+.row2{display:grid;grid-template-columns:1fr 1.6fr;gap:12px}
+.pick{display:flex;flex-wrap:wrap;gap:8px}
+.pick button{min-height:40px;border-radius:999px;font-weight:600;font-size:15px;padding:0 14px}
+.pick button[aria-pressed=true]{background:var(--mint);color:#06281D;border-color:var(--mint)}
+.err{color:#FF8A8A;font-size:14px;min-height:20px;margin:0}
+.done{text-align:center;background:var(--panel);border:1px solid var(--mint);border-radius:22px;padding:28px 20px}
+.done .big{font-size:clamp(40px,10vw,64px);font-weight:800;color:var(--mint);line-height:1}
+.done h2{margin:10px 0 6px;font-size:26px}
+.done p{color:var(--mute);margin:0 0 16px}
+.done .card{text-align:left;margin:0 auto 16px;max-width:360px}
+.credit{text-align:center;color:var(--mute);font-size:13px;margin-top:20px}
+.credit b{color:var(--mint)}
+/* dialogs */
+.modal{position:fixed;inset:0;background:rgba(5,10,18,.82);display:grid;place-items:center;padding:16px;z-index:9}
+.mbox{background:var(--panel);border:1px solid var(--mint);border-radius:24px;padding:clamp(20px,4vw,40px);max-width:760px;width:100%}
+.mbox h2{margin:0 0 12px;font-size:clamp(26px,3.6vw,44px);line-height:1.08;color:var(--mint)}
+.mbox ol{font-size:clamp(17px,2vw,22px);line-height:1.5;padding-left:1.2em;margin:0 0 18px}
+.mbox p{color:var(--mute)}
+.timer{font-size:clamp(40px,7vw,72px);font-weight:800;margin:6px 0 16px}
+.mrow{display:flex;gap:10px;flex-wrap:wrap}
+@media(max-width:600px){.qr{display:none}.stats{margin-left:0}.row2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ===== EKRAN (proyektor) ===== -->
+<section id="screen" class="hidden">
+<header>
+  <img class="logo" src="/logo.jpg" alt="Najot Ta'lim">
+  <div class="brand">
+    <h1>Kim bilan o'xshashsiz?</h1>
+    <p>SMM kursi · birinchi dars tanishuvi · <b>Najot Ta'lim</b></p>
+  </div>
+  <div class="stats">
+    <div class="stat"><strong id="sN">0</strong><span>o'quvchi</span></div>
+    <div class="stat"><strong id="sG">0</strong><span>guruh</span></div>
+    <div class="qr" id="qrPanel"><div id="qrbox"></div><p><b>Skanerlang</b>Ma'lumotingizni kiriting va o'z guruhingizni toping<span id="qrLink" style="display:block;color:var(--mint);font-weight:700;overflow-wrap:anywhere"></span></p></div>
+  </div>
+</header>
+<div class="bar" id="ownerBar">
+  <div class="size" title="Har bir guruhda nechta odam">Guruh hajmi
+    <button id="minus" aria-label="Kamaytirish">−</button><output id="sizeOut">5</output><button id="plus" aria-label="Ko'paytirish">+</button>
+  </div>
+  <button id="lockBtn">Guruhlarni qulflash</button>
+  <button id="taskBtn" class="primary">Vazifani boshlash</button>
+  <button id="demoBtn">Namuna: 25 o'quvchi</button>
+  <button id="copyLink">Havolani nusxalash</button>
+  <button id="newBtn">Yangi guruh boshlash</button>
+  <button id="fsBtn">To'liq ekran</button>
+  <span class="sp"></span>
+  <a id="formLink" href="/" target="_blank" style="color:var(--mint);font-weight:600">Forma sahifasi →</a>
+  <span class="status" id="status">Ulanmoqda…</span>
+</div>
+<p class="demo-note hidden" id="dbNote" style="border-color:#FF8A8A;color:#FF8A8A;background:rgba(255,138,138,.08)">Ma'lumotlar bazasi hali ulanmagan — Vercel'da Upstash Redis ulang.</p>
+<p class="demo-note hidden" id="demoNote">Namuna: 25 ta o'quvchi 5 guruhga bo'lingan. Haqiqiy o'quvchilar ma'lumot yuborishi bilan ular almashadi.</p>
+<main><div class="board" id="board"></div></main>
+<footer><span>Tizim muallifi: <b>Komilov Davronbek</b> — Najot Ta'lim SMM ustozi</span><span>Guruhlar qiziqish, maktab, hudud va yosh bo'yicha avtomatik tuziladi</span></footer>
+</section>
+
+<!-- ===== FORMA (o'quvchi telefoni) ===== -->
+<section id="formView" class="hidden">
+<div class="formwrap">
+  <div class="fhead">
+    <img src="/logo.jpg" alt="Najot Ta'lim">
+    <h1>Salom! Keling, tanishamiz</h1>
+    <p>Ma'lumotingizni kiriting — tizim sizni o'xshash qiziqishli kursdoshlar bilan bir guruhga qo'shadi.</p>
+  </div>
+  <form id="f" novalidate>
+    <label>Ism va familiya<input id="fName" maxlength="40" autocomplete="name" placeholder="Masalan: Aziz Karimov"></label>
+    <div class="row2">
+      <label>Yosh<input id="fAge" type="number" inputmode="numeric" min="12" max="70" placeholder="21"></label>
+      <label>Yashash hududi<input id="fDist" list="distList" maxlength="40" placeholder="Tanlang yoki yozing"><datalist id="distList"></datalist></label>
+    </div>
+    <label>O'qigan maktabingiz <small>raqami yoki nomi, masalan: 30-maktab</small><input id="fSchool" maxlength="40" placeholder="30-maktab"></label>
+    <div><label style="margin-bottom:8px">Qiziqishlaringiz <small>1 tadan 3 tagacha tanlang</small></label><div class="pick" id="fInt"></div>
+      <div class="addrow"><input id="fCustom" maxlength="24" placeholder="Ro'yxatda yo'qmi? O'zingiz yozing"><button type="button" id="fAdd">Qo'shish</button></div></div>
+    <p class="err" id="fErr" role="alert"></p>
+    <button class="primary" type="submit" id="fSend">Ekranga yuborish</button>
+  </form>
+  <div class="done hidden" id="done">
+    <div class="big" id="dGroup">—</div>
+    <h2>Siz ekrandasiz!</h2>
+    <p id="dText">Proyektorga qarang va guruhdoshlaringizni toping.</p>
+    <div id="dCard"></div>
+    <button id="editBtn">Ma'lumotni tahrirlash</button>
+  </div>
+  <div class="done hidden" id="noCode"><h2>Guruh havolasi kerak</h2><p>Ustozingiz bergan havolani yoki QR-kodni oching. Yoki guruh kodini kiriting:</p><div class="addrow"><input id="codeIn" maxlength="12" placeholder="Masalan: FN56" style="text-transform:uppercase"><button class="primary" id="codeGo">Kirish</button></div></div>
+  <p class="credit">Tizim muallifi: <b>Komilov Davronbek</b> · Najot Ta'lim</p>
+</div>
+</section>
+
+<div class="modal hidden" id="taskModal" role="dialog" aria-modal="true" aria-labelledby="tT">
+  <div class="mbox">
+    <h2 id="tT">Guruhingiz bilan 7 daqiqa</h2>
+    <ol>
+      <li>Bir-biringizga ismingiz va nega SMM'ga kelganingizni ayting.</li>
+      <li>Nega aynan bir guruhga tushganingizni toping — ekrandagi yashil yozuv yordam beradi.</li>
+      <li>Guruhingiz haqida <b>auditoriya portreti</b> yozing: yosh, qiziqish, hudud, qaysi kontentni ko'radi.</li>
+      <li>Guruhingizdan bitta vakil 1 daqiqada taqdim etadi.</li>
+    </ol>
+    <div class="timer" id="tClock">7:00</div>
+    <div class="mrow"><button class="primary" id="tStart">Taymerni boshlash</button><button id="tClose">Yopish</button></div>
+  </div>
+</div>
+
+<div class="modal hidden" id="qrModal" role="dialog" aria-modal="true">
+  <div class="mbox" style="text-align:center;max-width:520px">
+    <h2>Skanerlang va qo'shiling</h2>
+    <div id="bigQr" style="background:#fff;padding:16px;border-radius:16px;display:inline-block;margin:8px 0 12px"></div>
+    <p id="bigLink" style="font-size:22px;font-weight:800;color:var(--ink);overflow-wrap:anywhere"></p>
+    <button id="qrClose">Yopish</button>
+  </div>
+</div>
+
+<div class="modal hidden" id="confirmModal" role="dialog" aria-modal="true">
+  <div class="mbox">
+    <h2>Yangi guruh boshlansinmi?</h2>
+    <p>Yangi guruh kodi va yangi QR-kod yaratiladi. Eski havola bilan yuborilgan javoblar yangi ekranga tushmaydi.</p>
+    <div class="mrow"><button class="primary" id="cYes">Ha, yangisini boshlash</button><button id="cNo">Bekor qilish</button></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+{
+const DISTRICTS = ["Farg'ona shahri","Marg'ilon shahri","Qo'qon shahri","Quvasoy shahri","Farg'ona tumani","Oltiariq","Bag'dod","Beshariq","Buvayda","Dang'ara","Furqat","Qo'shtepa","Quva","Rishton","So'x","Toshloq","Uchko'prik","O'zbekiston tumani","Yozyovon","Boshqa viloyat"];
+const INTERESTS = ["Futbol","Boshqa sport","Fitnes","Musiqa","Kino va seriallar","O'yinlar","Kitob","Sayohat","Biznes","Dizayn","Foto va video","Bloggerlik","IT","Moda","Pazandachilik","Avto","Chet tillari"];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SAMPLE = [
+ ["Aziz Karimov",21,"Farg'ona shahri","30-maktab",["Futbol","Biznes"]],
+ ["Madina Yusupova",19,"Marg'ilon shahri","12-maktab",["Musiqa","Kino va seriallar"]],
+ ["Jasur Toshpo'latov",22,"Farg'ona shahri","30-maktab",["Futbol","Fitnes"]],
+ ["Dilnoza Ergasheva",18,"Qo'qon shahri","5-maktab",["Dizayn","Foto va video"]],
+ ["Sardor Rahimov",24,"Qo'qon shahri","7-maktab",["Biznes","IT"]],
+ ["Nilufar Hasanova",20,"Marg'ilon shahri","12-maktab",["Musiqa","Moda"]],
+ ["Bekzod Olimov",23,"Farg'ona tumani","18-maktab",["Futbol","Avto"]],
+ ["Sevara Mirzayeva",21,"Rishton","3-maktab",["Pazandachilik","Bloggerlik"]],
+ ["Otabek Qodirov",25,"Qo'qon shahri","5-maktab",["Biznes","Chet tillari"]],
+ ["Malika Abdullayeva",19,"Farg'ona shahri","21-maktab",["Dizayn","Moda"]],
+ ["Javohir Nazarov",20,"Farg'ona shahri","30-maktab",["Futbol","O'yinlar"]],
+ ["Zarina Sobirova",22,"Marg'ilon shahri","9-maktab",["Kino va seriallar","Kitob"]],
+ ["Shoxrux Tursunov",18,"Quva","11-maktab",["O'yinlar","Anime"]],
+ ["Gulnoza Rasulova",23,"Rishton","3-maktab",["Pazandachilik","Sayohat"]],
+ ["Diyor Usmonov",21,"Qo'qon shahri","7-maktab",["IT","Biznes"]],
+ ["Kamola Ismoilova",20,"Farg'ona shahri","21-maktab",["Foto va video","Dizayn"]],
+ ["Islom Valiyev",19,"Quva","11-maktab",["O'yinlar","Shaxmat"]],
+ ["Mohira Jo'rayeva",24,"Rishton","8-maktab",["Bloggerlik","Sayohat"]],
+ ["Sanjar Ahmedov",22,"Farg'ona tumani","18-maktab",["Futbol","Fitnes"]],
+ ["Shahzoda Komilova",18,"Marg'ilon shahri","12-maktab",["Musiqa","Kitob"]],
+ ["Abdulloh Saidov",20,"Quva","4-maktab",["Anime","Shaxmat"]],
+ ["Laylo Xolmatova",21,"Farg'ona shahri","21-maktab",["Foto va video","Bloggerlik"]],
+ ["Temur Bakirov",23,"Qo'qon shahri","5-maktab",["Biznes","Avto"]],
+ ["Ruxshona Normatova",22,"Rishton","8-maktab",["Pazandachilik","Bloggerlik"]],
+ ["Behruz Aliyev",19,"Quva","11-maktab",["O'yinlar","IT"]]
+].map(([name,age,district,school,interests],i)=>({id:"sample"+i,sample:true,name,age,district,school,interests,t:i}));
+const norm = x => String(x||"").trim().toLowerCase().replace(/[‘’`ʻʼ]/g,"'").replace(/\s+/g," ");
+const cap1 = x => { x = String(x||"").trim().replace(/\s+/g," "); return x.charAt(0).toUpperCase()+x.slice(1); };
+const schoolKey = s => { const d = String(s.school||"").match(/\d+/); return d ? norm(s.district)+"#"+d[0] : norm(s.school); };
+function sim(a,b){
+  let v = 0;
+  const bi = new Set((b.interests||[]).map(norm));
+  for (const i of a.interests||[]) if (bi.has(norm(i))) v += 3;
+  if (a.district && norm(a.district) === norm(b.district)) v += 2;
+  const ka = schoolKey(a); if (ka && ka === schoolKey(b)) v += 3;
+  const d = Math.abs((+a.age||0) - (+b.age||0));
+  v += d <= 1 ? 1 : d <= 3 ? .5 : 0;
+  return v;
+}
+function partition(list, size){
+  const L = [...list].sort((a,b)=>(a.t||0)-(b.t||0) || String(a.id).localeCompare(b.id));
+  const n = L.length; if (!n) return [];
+  const k = Math.max(1, Math.round(n/size));
+  const cap = Array.from({length:k}, (_,i) => Math.floor(n/k) + (i < n%k ? 1 : 0));
+  const G = Array.from({length:k}, () => []);
+  const used = new Set();
+  // urug'lar: bir-biridan eng uzoq odamlar
+  G[0].push(L[0]); used.add(L[0].id);
+  for (let g=1; g<k; g++){
+    let best=null, bs=Infinity;
+    for (const s of L) if (!used.has(s.id)){ const m = Math.max(...G.slice(0,g).map(x=>sim(s,x[0]))); if (m < bs){bs=m;best=s;} }
+    G[g].push(best); used.add(best.id);
+  }
+  for (const s of L) if (!used.has(s.id)){
+    let bg=-1, bv=-Infinity;
+    G.forEach((g,i)=>{ if (g.length < cap[i]){ const v = g.reduce((t,x)=>t+sim(s,x),0)/g.length; if (v > bv){bv=v;bg=i;} } });
+    G[bg].push(s); used.add(s.id);
+  }
+  // almashtirish orqali yaxshilash
+  const fit = (s,g,skip) => g.reduce((t,x)=> x===skip ? t : t+sim(s,x), 0);
+  for (let pass=0, imp=true; imp && pass<40; pass++){
+    imp = false;
+    for (let a=0;a<k;a++) for (let b=a+1;b<k;b++)
+      for (let i=0;i<G[a].length;i++) for (let j=0;j<G[b].length;j++){
+        const x=G[a][i], y=G[b][j];
+        const d = fit(x,G[b],y)+fit(y,G[a],x)-fit(x,G[a],x)-fit(y,G[b],y);
+        if (d > .01){ G[a][i]=y; G[b][j]=x; imp=true; }
+      }
+  }
+  return G;
+}
+function common(g){
+  const out = [];
+  const cnt = {}, lab = {}; g.forEach(s=>(s.interests||[]).forEach(i=>{const k=norm(i); cnt[k]=(cnt[k]||0)+1; lab[k]=lab[k]||i;}));
+  Object.entries(cnt).filter(([,c])=>c>=2).sort((a,b)=>b[1]-a[1]).slice(0,3).forEach(([k,c])=>out.push({t:lab[k]+" ×"+c, k}));
+  const dc = {}, dl = {}; g.forEach(s=>{const k=norm(s.district); dc[k]=(dc[k]||0)+1; dl[k]=dl[k]||s.district;});
+  const [dn,dv] = Object.entries(dc).sort((a,b)=>b[1]-a[1])[0]||[];
+  if (dv>=2) out.push({t:dl[dn]+" ×"+dv});
+  const sc = {}; g.forEach(s=>{const k=schoolKey(s); if(k) sc[k]=(sc[k]||[]).concat(s);});
+  Object.values(sc).filter(a=>a.length>=2).forEach(a=>out.push({t:"bir maktab ("+a[0].school+") ×"+a.length}));
+  return out;
+}
+function linkedShare(g){ // umumiy jihati bor juftliklar ulushi
+  let p=0,h=0; for (let i=0;i<g.length;i++) for (let j=i+1;j<g.length;j++){ p++; if (sim(g[i],g[j])>=2) h++; }
+  return p ? Math.round(h/p*100) : 0;
+}
+
+/* ---------- holat ---------- */
+const qs = new URLSearchParams(location.search);
+const isScreen = location.hash === "#ekran" || location.pathname.replace(/\/$/,"") === "/ekran";
+const store = { get(k,d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch(x){ return d; } }, set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(x){} } };
+const newCode = () => Array.from({length:4}, () => "ABCDEFGHJKMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*31)]).join("");
+let code = (qs.get("g") || (isScreen ? store.get("tz-code", "") : "") || "").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12);
+if (isScreen && !code){ code = newCode(); }
+if (isScreen) store.set("tz-code", code);
+let state = {size:5, locked:false, groups:null};
+let students = [], hidden = new Set(store.get("tz-hidden-"+code, [])), demo = null, freshIds = new Set(), knownIds = null, dbOk = true;
+const myId = store.get("tz-me-"+code, null) || ("u"+Date.now().toString(36)+Math.random().toString(36).slice(2,8));
+let myDoc = null, editing = false;
+const formUrl = () => location.origin + "/?g=" + encodeURIComponent(code);
+
+/* ---------- API ---------- */
+async function api(path, opts){
+  const r = await fetch(path, {headers:{"content-type":"application/json"}, ...opts});
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || "Xatolik"), {status:r.status, body:j});
+  return j;
+}
+async function poll(){
+  if (!code) return;
+  try{
+    const j = await api("/api/students?g="+encodeURIComponent(code));
+    dbOk = j.db !== false;
+    if (j.state && !isScreen) state = {...state, ...j.state};
+    const list = (j.students||[]).filter(s=>!hidden.has(s.id));
+    const ids = new Set(list.map(s=>s.id));
+    if (knownIds) list.forEach(s=>{ if (!knownIds.has(s.id)){ freshIds.add(s.id); setTimeout(()=>{ freshIds.delete(s.id); }, 4000); } });
+    knownIds = ids; students = list;
+    if (!isScreen && !myDoc && !editing){ const m = list.find(s=>s.id===myId); if (m){ myDoc = m; } }
+    $("status").textContent = dbOk ? "Jonli · har 3 soniyada yangilanadi" : "Baza ulanmagan";
+    $("status").classList.toggle("live", dbOk);
+    render();
+  }catch(x){ $("status").textContent = "Server bilan aloqa yo'q"; $("status").classList.remove("live"); }
+}
+async function pushState(){
+  store.set("tz-state-"+code, state);
+  try{ await api("/api/state", {method:"POST", body:JSON.stringify({g:code, state})}); }catch(x){}
+}
+
+/* ---------- guruhlar ---------- */
+function currentGroups(){
+  const real = students;
+  const list = demo || (real.length ? real : (isScreen ? SAMPLE : []));
+  if (state.locked && state.groups && !demo && real.length){
+    const byId = Object.fromEntries(list.map(s=>[s.id,s]));
+    const G = state.groups.map(ids=>ids.map(id=>byId[id]).filter(Boolean));
+    const placed = new Set(state.groups.flat());
+    for (const s of list) if (!placed.has(s.id)){
+      let bi=0,bv=-1; G.forEach((g,i)=>{const v=g.length?g.reduce((t,x)=>t+sim(s,x),0)/g.length:0; if(v>bv){bv=v;bi=i;}}); G[bi].push(s);
+    }
+    return G.filter(g=>g.length);
+  }
+  return partition(list, state.size);
+}
+
+/* ---------- render ---------- */
+function cardHTML(s, hits){
+  const ini = esc((s.name||"?").trim().charAt(0).toUpperCase());
+  const chips = (s.interests||[]).map(i=>`<span class="chip${hits&&hits.has(norm(i))?" hit":""}">${esc(i)}</span>`).join("");
+  const del = isScreen && !demo && !s.sample ? `<button class="del" data-del="${esc(s.id)}" aria-label="Ekrandan olib tashlash">✕</button>` : "";
+  return `<div class="card${freshIds.has(s.id)?" new":""}">${del}<div class="av">${ini}</div><div><h3>${esc(s.name)}</h3><div class="meta">${esc(s.age)} yosh · ${esc(s.district)}<br>${esc(s.school)}</div></div><div class="chips">${chips}</div></div>`;
+}
+function renderScreen(){
+  const G = currentGroups();
+  const n = G.reduce((t,g)=>t+g.length,0);
+  $("sN").textContent = n; $("sG").textContent = G.length;
+  $("sizeOut").textContent = state.size;
+  $("lockBtn").textContent = state.locked ? "Qulfni ochish" : "Guruhlarni qulflash";
+  const showingSample = !!demo || !students.length;
+  $("demoNote").classList.toggle("hidden", !showingSample);
+  $("dbNote").classList.toggle("hidden", dbOk);
+  $("demoBtn").textContent = demo ? "Namunani yopish" : "Namuna: 25 o'quvchi";
+  $("demoBtn").classList.toggle("hidden", !demo && showingSample);
+  $("board").innerHTML = G.map((g,i)=>{
+    const c = common(g); const hits = new Set(c.filter(x=>x.k).map(x=>x.k));
+    const ct = c.length ? `<div class="common">Umumiy: ${c.map(x=>esc(x.t)).join(" · ")}</div>` : `<div class="common none">Hali umumiy jihat topilmadi</div>`;
+    const ls = linkedShare(g);
+    return `<div class="group"><div class="ghead"><div class="gnum">${i+1}</div><h2>${i+1}-guruh<span class="gsub">${g.length} kishi · juftliklarning ${ls}% umumiy jihatga ega</span></h2></div><div class="meter" title="Moslik"><i style="width:${ls}%"></i></div>${ct}${g.map(s=>cardHTML(s,hits)).join("")}</div>`;
+  }).join("");
+}
+function showDone(){
+  if (!myDoc) return;
+  const mine = students.find(s=>s.id===myId) || myDoc;
+  const G = currentGroups(); const gi = G.findIndex(g=>g.some(s=>s.id===myId));
+  $("f").classList.add("hidden"); $("done").classList.remove("hidden");
+  $("dGroup").textContent = gi>=0 ? (gi+1)+"-guruh" : "✓";
+  const mates = gi>=0 ? G[gi].filter(s=>s.id!==myId).map(s=>s.name) : [];
+  $("dText").textContent = mates.length ? "Guruhdoshlaringiz: "+mates.join(", ")+". Ularni toping va salomlashing!" : "Proyektorga qarang — boshqalar qo'shilgani sari guruhingiz to'ladi.";
+  $("dCard").innerHTML = cardHTML(mine, null);
+}
+function render(){ if (isScreen) renderScreen(); else showDone(); }
+
+/* ---------- sahifa tanlash ---------- */
+$("screen").classList.toggle("hidden", !isScreen);
+$("formView").classList.toggle("hidden", isScreen);
+if (!isScreen && !code){ $("f").classList.add("hidden"); $("noCode").classList.remove("hidden"); }
+$("codeGo").onclick = ()=>{ const c = $("codeIn").value.toUpperCase().replace(/[^A-Z0-9]/g,""); if (c) location.href = "/?g="+c; };
+$("codeIn").addEventListener("keydown", e=>{ if (e.key==="Enter") $("codeGo").click(); });
+
+/* ---------- forma ---------- */
+$("distList").innerHTML = DISTRICTS.map(d=>`<option value="${esc(d)}"></option>`).join("");
+$("fInt").innerHTML = INTERESTS.map(i=>`<button type="button" aria-pressed="false">${esc(i)}</button>`).join("");
+$("fInt").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if (!b) return;
+  const on = b.getAttribute("aria-pressed")==="true";
+  if (!on && $("fInt").querySelectorAll("[aria-pressed=true]").length>=3){ $("fErr").textContent = "Ko'pi bilan 3 ta qiziqish tanlang"; return; }
+  $("fErr").textContent = ""; b.setAttribute("aria-pressed", String(!on));
+});
+function addCustom(text, pressed){
+  const v = cap1(text); if (!v) return;
+  const ex = [...$("fInt").children].find(b=>norm(b.textContent)===norm(v));
+  if (ex){ if (pressed) ex.setAttribute("aria-pressed","true"); return; }
+  const b = document.createElement("button"); b.type="button"; b.className="custom"; b.textContent=v; b.setAttribute("aria-pressed", String(pressed));
+  $("fInt").appendChild(b);
+}
+$("fAdd").addEventListener("click", ()=>{
+  const v = $("fCustom").value.trim(); if (!v) return;
+  if ($("fInt").querySelectorAll("[aria-pressed=true]").length>=3){ $("fErr").textContent = "Ko'pi bilan 3 ta qiziqish — avval bittasini olib tashlang"; return; }
+  addCustom(v, true); $("fCustom").value = ""; $("fErr").textContent = "";
+});
+$("fCustom").addEventListener("keydown", e=>{ if (e.key==="Enter"){ e.preventDefault(); $("fAdd").click(); } });
+$("f").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const rec = {
+    id: myId, name: cap1($("fName").value), age: +$("fAge").value,
+    district: (DISTRICTS.find(d=>norm(d)===norm($("fDist").value)) || cap1($("fDist").value)),
+    school: $("fSchool").value.trim(),
+    interests: [...$("fInt").querySelectorAll("[aria-pressed=true]")].map(b=>b.textContent)
+  };
+  const err = !rec.name ? "Ismingizni yozing" : !(rec.age>=12 && rec.age<=70) ? "Yoshingizni to'g'ri kiriting" : !rec.district ? "Hududni tanlang yoki yozing" : !rec.school ? "Maktabingizni yozing" : !rec.interests.length ? "Kamida bitta qiziqish tanlang" : "";
+  if (err){ $("fErr").textContent = err; return; }
+  $("fSend").disabled = true; $("fSend").textContent = "Yuborilmoqda…";
+  try{
+    const j = await api("/api/students", {method:"POST", body:JSON.stringify({g:code, student:rec})});
+    store.set("tz-me-"+code, myId);
+    myDoc = j.student || rec; editing = false;
+    await poll(); showDone();
+  }catch(x){ $("fErr").textContent = x.status===503 ? "Tizim hali sozlanmagan — ustozingizga ayting." : "Yuborib bo'lmadi. Internetni tekshirib, qayta urining."; }
+  $("fSend").disabled = false; $("fSend").textContent = "Ekranga yuborish";
+});
+$("editBtn").addEventListener("click", ()=>{
+  const m = students.find(s=>s.id===myId) || myDoc; myDoc = null; editing = true;
+  $("fName").value = m.name; $("fAge").value = m.age; $("fDist").value = m.district; $("fSchool").value = m.school;
+  $("fInt").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", String(m.interests.some(i=>norm(i)===norm(b.textContent)))));
+  m.interests.forEach(i=>addCustom(i, true));
+  $("done").classList.add("hidden"); $("f").classList.remove("hidden");
+});
+
+/* ---------- ekran boshqaruvi ---------- */
+if (isScreen){
+  state = {...state, ...store.get("tz-state-"+code, {})};
+  $("formLink").href = formUrl();
+  $("qrLink").textContent = location.host + "/?g=" + code;
+  try{ new QRCode($("qrbox"), {text:formUrl(), width:88, height:88, colorDark:"#0B1524", colorLight:"#ffffff"}); }catch(x){ $("qrPanel").classList.add("hidden"); }
+  $("qrbox").style.cursor = "zoom-in";
+  $("qrbox").onclick = ()=>{ $("bigQr").innerHTML=""; try{ new QRCode($("bigQr"), {text:formUrl(), width:320, height:320, colorDark:"#0B1524", colorLight:"#ffffff"}); }catch(x){} $("qrModal").classList.remove("hidden"); };
+  $("qrClose").onclick = ()=> $("qrModal").classList.add("hidden");
+  $("bigLink").textContent = location.host + "/?g=" + code;
+}
+$("minus").onclick = ()=>{ if (state.size>2 && !state.locked){ state.size--; render(); pushState(); } };
+$("plus").onclick = ()=>{ if (state.size<10 && !state.locked){ state.size++; render(); pushState(); } };
+$("lockBtn").onclick = ()=>{
+  if (state.locked) state = {...state, locked:false, groups:null};
+  else state = {...state, locked:true, groups:partition(students, state.size).map(g=>g.map(s=>s.id))};
+  render(); pushState();
+};
+$("copyLink").onclick = async e=>{ try{ await navigator.clipboard.writeText(formUrl()); e.target.textContent = "Nusxalandi ✓"; }catch(x){ e.target.textContent = formUrl(); } setTimeout(()=>{ e.target.textContent = "Havolani nusxalash"; }, 2500); };
+$("newBtn").onclick = ()=> $("confirmModal").classList.remove("hidden");
+$("cNo").onclick = ()=> $("confirmModal").classList.add("hidden");
+$("cYes").onclick = ()=>{ store.set("tz-code", newCode()); location.reload(); };
+$("board").addEventListener("click", e=>{
+  const b = e.target.closest("[data-del]"); if (!b) return;
+  hidden.add(b.dataset.del); store.set("tz-hidden-"+code, [...hidden]);
+  students = students.filter(s=>s.id!==b.dataset.del); render();
+});
+$("demoBtn").onclick = ()=>{ demo = demo ? null : SAMPLE; render(); };
+$("fsBtn").onclick = ()=>{ try{ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(()=>{}); }catch(x){} };
+let tId = null;
+$("taskBtn").onclick = ()=> $("taskModal").classList.remove("hidden");
+$("tClose").onclick = ()=>{ $("taskModal").classList.add("hidden"); clearInterval(tId); tId=null; $("tClock").textContent="7:00"; };
+$("tStart").onclick = ()=>{
+  clearInterval(tId); let left = 420;
+  tId = setInterval(()=>{ left--; $("tClock").textContent = Math.floor(left/60)+":"+String(left%60).padStart(2,"0"); if (left<=0){ clearInterval(tId); $("tClock").textContent="Vaqt tugadi!"; } },1000);
+};
+addEventListener("keydown", e=>{ if (e.key==="Escape") document.querySelectorAll(".modal").forEach(m=>m.classList.add("hidden")); });
+
+render();
+if (code){ poll(); setInterval(poll, 3000); }
+}
+</script>
+</body>
+</html>
